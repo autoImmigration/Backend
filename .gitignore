@@ -1,0 +1,10 @@
+build/
+target/
+.gradle/
+.gradle-home/
+data/
+.idea/
+.vscode/
+*.iml
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
