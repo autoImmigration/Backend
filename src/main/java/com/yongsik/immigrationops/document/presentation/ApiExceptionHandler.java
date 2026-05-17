@@ -1,14 +1,38 @@
 package com.yongsik.immigrationops.document.presentation;
 
+import com.yongsik.immigrationops.common.BadRequestException;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler({
+            MethodArgumentNotValidException.class,
+            HttpMessageNotReadableException.class
+    })
+    ResponseEntity<Map<String, Object>> handleBadRequest(Exception exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "timestamp", Instant.now().toString(),
+                "error", "BAD_REQUEST",
+                "message", "Invalid request"
+        ));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    ResponseEntity<Map<String, Object>> handleBadRequestException(BadRequestException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "timestamp", Instant.now().toString(),
+                "error", "BAD_REQUEST",
+                "message", exception.getMessage()
+        ));
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException exception) {
@@ -28,4 +52,3 @@ public class ApiExceptionHandler {
         ));
     }
 }
-

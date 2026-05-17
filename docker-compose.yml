@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: immigration-ops-postgres
+    environment:
+      POSTGRES_DB: immigration_ops
+      POSTGRES_USER: immigration_ops
+      POSTGRES_PASSWORD: immigration_ops
+    ports:
+      - "5433:5432"
+    volumes:
+      - immigration-ops-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U immigration_ops -d immigration_ops"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  immigration-ops-postgres-data:

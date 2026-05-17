@@ -6,6 +6,19 @@ spring:
     name: immigration-ops-backend
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/immigration_ops}
+    username: ${DB_USERNAME:immigration_ops}
+    password: ${DB_PASSWORD:immigration_ops}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
   servlet:
     multipart:
       max-file-size: 25MB
@@ -15,13 +28,23 @@ app:
   cors:
     allowed-origins:
       - http://localhost:5173
+      - http://127.0.0.1:5173
+      - http://localhost:4173
+      - http://127.0.0.1:4173
   storage:
     root-path: data/uploads
   security:
     username: ${APP_SECURITY_USERNAME:admin}
     password: ${APP_SECURITY_PASSWORD:change-me}
+  # INTERNAL_API_KEY 환경변수: /api/v1/internal/** 엔드포인트 보안용 API Key
+  # 운영 환경에서는 반드시 INTERNAL_API_KEY 환경변수를 설정하세요.
+  python-ocr:
+    base-url: ${PYTHON_OCR_BASE_URL:http://localhost:8001}
+    enabled: ${PYTHON_OCR_ENABLED:true}
+  backend:
+    callback-base-url: ${BACKEND_CALLBACK_BASE_URL:http://localhost:8080}
   ocr:
-    provider: ${APP_OCR_PROVIDER:openai}
+    provider: ${APP_OCR_PROVIDER:stub}
     openai:
       api-key: ${OPENAI_API_KEY:}
       model: ${OPENAI_OCR_MODEL:gpt-4o-mini}
