@@ -7,7 +7,8 @@ public record CreateUploadBatchCommand(
         String rawZipChecksum,
         long rawZipSizeBytes,
         String note,
-        String schoolId
+        String schoolId,
+        String visaTypeCode
 ) {
     public CreateUploadBatchCommand(
             String originalFilename,
@@ -17,6 +18,6 @@ public record CreateUploadBatchCommand(
             long rawZipSizeBytes,
             String note
     ) {
-        this(originalFilename, rawZipStorageType, rawZipLocation, rawZipChecksum, rawZipSizeBytes, note, null);
+        this(originalFilename, rawZipStorageType, rawZipLocation, rawZipChecksum, rawZipSizeBytes, note, null, null);
     }
 }

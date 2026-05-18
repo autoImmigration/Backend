@@ -53,7 +53,8 @@ public class AgencyUploadBatchCommandController {
                         request.rawZipChecksum(),
                         request.rawZipSizeBytes(),
                         request.note(),
-                        request.schoolId()
+                        request.schoolId(),
+                        request.visaTypeCode()
                 )
         );
 
@@ -66,7 +67,8 @@ public class AgencyUploadBatchCommandController {
             Authentication authentication,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "note", required = false) String note,
-            @RequestParam(value = "schoolId", required = false) String schoolId
+            @RequestParam(value = "schoolId", required = false) String schoolId,
+            @RequestParam(value = "visaTypeCode", required = false) String visaTypeCode
     ) {
         validateZipFile(file);
         StoredUploadBatchFile storedFile = uploadBatchFileStorage.store(file);
@@ -80,7 +82,8 @@ public class AgencyUploadBatchCommandController {
                         storedFile.checksum(),
                         storedFile.sizeBytes(),
                         note,
-                        schoolId
+                        schoolId,
+                        visaTypeCode
                 )
         );
 
@@ -119,7 +122,8 @@ record AgencyUploadBatchCreateRequest(
         String rawZipChecksum,
         @NotNull @PositiveOrZero Long rawZipSizeBytes,
         String note,
-        String schoolId
+        String schoolId,
+        String visaTypeCode
 ) {
 }
 

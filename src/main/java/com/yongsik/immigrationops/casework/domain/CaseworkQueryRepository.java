@@ -16,4 +16,6 @@ public interface CaseworkQueryRepository {
     List<UploadBatch> findUploadBatches();
 
     Optional<UploadBatch> findUploadBatchById(String batchId);
+
+    List<ApplicationCase> findCasesByBatchId(String batchId);
 }

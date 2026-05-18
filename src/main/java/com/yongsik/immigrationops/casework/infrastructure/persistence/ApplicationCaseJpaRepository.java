@@ -42,4 +42,16 @@ public interface ApplicationCaseJpaRepository extends JpaRepository<ApplicationC
             "documents.documentType"
     })
     Optional<ApplicationCaseEntity> findByExternalId(String externalId);
+
+    @EntityGraph(attributePaths = {
+            "student",
+            "student.schoolOrganization",
+            "student.agencyOrganization",
+            "schoolOrganization",
+            "agencyOrganization",
+            "visaType",
+            "documents",
+            "documents.documentType"
+    })
+    List<ApplicationCaseEntity> findAllByIntakeBatchOrderByCreatedAtAsc(String intakeBatch);
 }

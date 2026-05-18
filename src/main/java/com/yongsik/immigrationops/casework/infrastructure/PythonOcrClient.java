@@ -35,6 +35,19 @@ public class PythonOcrClient {
             double timeout_seconds
     ) {}
 
+    public record BatchProgress(String batch_id, int processed, int total, String status) {}
+
+    public BatchProgress getBatchProgress(String batchId) {
+        try {
+            return restClient.get()
+                    .uri(pythonBaseUrl + "/batches/" + batchId + "/progress")
+                    .retrieve()
+                    .body(BatchProgress.class);
+        } catch (Exception e) {
+            return new BatchProgress(batchId, 0, 0, "unknown");
+        }
+    }
+
     public void submitBatch(BatchRequest request) {
         log.info("[PythonOcrClient] Submitting batch upload_batch_id={} to {}", request.upload_batch_id(), pythonBaseUrl);
         try {

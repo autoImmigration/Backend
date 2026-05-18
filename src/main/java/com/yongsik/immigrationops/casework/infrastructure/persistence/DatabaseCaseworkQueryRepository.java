@@ -12,8 +12,10 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@Transactional(readOnly = true)
 public class DatabaseCaseworkQueryRepository implements CaseworkQueryRepository {
 
     private final StudentJpaRepository studentJpaRepository;
@@ -76,6 +78,14 @@ public class DatabaseCaseworkQueryRepository implements CaseworkQueryRepository 
     public Optional<UploadBatch> findUploadBatchById(String batchId) {
         return uploadBatchJpaRepository.findByExternalId(batchId)
                 .map(mapper::toUploadBatch);
+    }
+
+    @Override
+    public List<ApplicationCase> findCasesByBatchId(String batchId) {
+        return applicationCaseJpaRepository.findAllByIntakeBatchOrderByCreatedAtAsc(batchId)
+                .stream()
+                .map(mapper::toApplicationCase)
+                .toList();
     }
 
     private List<ApplicationCaseEntity> deduplicateCases(List<ApplicationCaseEntity> entities) {

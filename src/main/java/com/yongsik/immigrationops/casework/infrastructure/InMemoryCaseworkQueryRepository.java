@@ -66,6 +66,13 @@ public class InMemoryCaseworkQueryRepository implements CaseworkQueryRepository 
         return Optional.ofNullable(uploadBatches.get(batchId));
     }
 
+    @Override
+    public List<ApplicationCase> findCasesByBatchId(String batchId) {
+        return findAllCases().stream()
+                .filter(c -> batchId.equals(c.intakeBatch()))
+                .toList();
+    }
+
     private boolean matches(StudentRecord student, StudentLookupCriteria criteria) {
         StudentLookupCriteria normalizedStudent = new StudentLookupCriteria(
                 student.nationality(),

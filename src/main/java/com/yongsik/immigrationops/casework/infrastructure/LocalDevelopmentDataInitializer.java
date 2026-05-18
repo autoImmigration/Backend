@@ -82,6 +82,8 @@ public class LocalDevelopmentDataInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        ensureDefaultSchools();
+
         if (applicationCaseJpaRepository.count() > 0 || uploadBatchJpaRepository.count() > 0) {
             return;
         }
@@ -100,6 +102,14 @@ public class LocalDevelopmentDataInitializer implements ApplicationRunner {
         Map<String, StudentEntity> students = seedStudents(cases, schoolOrganizations, agencyOrganizations);
         seedApplicationCases(cases, students, schoolOrganizations, agencyOrganizations, visaTypes, visaRequirements);
         seedUploadBatches(uploadBatches);
+    }
+
+    private void ensureDefaultSchools() {
+        List<String> defaultSchools = List.of("Sejong University", "Inha University");
+        for (String name : defaultSchools) {
+            organizationJpaRepository.findByTypeAndName(OrganizationType.SCHOOL, name)
+                    .orElseGet(() -> saveOrganization(OrganizationType.SCHOOL, name));
+        }
     }
 
     private Map<String, OrganizationEntity> seedSchoolOrganizations(List<ApplicationCase> cases) {

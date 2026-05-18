@@ -18,6 +18,7 @@ import com.yongsik.immigrationops.casework.infrastructure.persistence.StudentEnt
 import com.yongsik.immigrationops.casework.infrastructure.persistence.StudentJpaRepository;
 import com.yongsik.immigrationops.casework.infrastructure.persistence.UploadBatchEntity;
 import com.yongsik.immigrationops.casework.infrastructure.persistence.UploadBatchJpaRepository;
+import com.yongsik.immigrationops.casework.infrastructure.persistence.VisaTypeEntity;
 import com.yongsik.immigrationops.casework.infrastructure.persistence.VisaTypeJpaRepository;
 import com.yongsik.immigrationops.common.BadRequestException;
 import com.yongsik.immigrationops.security.AppUserEntity;
@@ -32,12 +33,22 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import com.yongsik.immigrationops.casework.domain.CaseDocumentStatus;
+import com.yongsik.immigrationops.casework.infrastructure.persistence.CaseDocumentRequirementEntity;
+import com.yongsik.immigrationops.casework.infrastructure.persistence.CaseDocumentRequirementJpaRepository;
+import com.yongsik.immigrationops.casework.infrastructure.persistence.DocumentTypeEntity;
+import com.yongsik.immigrationops.casework.infrastructure.persistence.DocumentTypeJpaRepository;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.slf4j.Logger;
@@ -58,6 +69,27 @@ public class AgencyCommandService {
             ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff", ".pdf"
     );
 
+    // Python 서류 코드 → Java CaseDocumentType 코드 매핑 (이름이 다른 것만 명시)
+    private static final Map<String, String> PYTHON_TO_JAVA_DOC_CODE = Map.ofEntries(
+            Map.entry("application_form", "APPLICATION_FORM"),
+            Map.entry("passport_copy", "PASSPORT_COPY"),
+            Map.entry("visa_issuance_certificate", "VISA_ISSUANCE_CERTIFICATE"),
+            Map.entry("enrollment_certificate", "ENROLLMENT_CERTIFICATE"),
+            Map.entry("real_estate_contract", "REAL_ESTATE_CONTRACT"),
+            Map.entry("alien_registration_card_copy", "ALIEN_REGISTRATION_CARD_COPY"),
+            Map.entry("attendance_certificate", "ATTENDANCE_CERTIFICATE"),
+            Map.entry("bank_balance_certificate", "BANK_BALANCE_CERTIFICATE"),
+            Map.entry("statement_of_reason", "REASON_STATEMENT"),
+            Map.entry("power_of_attorney", "POWER_OF_ATTORNEY"),
+            Map.entry("advisor_confirmation", "ADVISOR_CONFIRMATION"),
+            Map.entry("admission_letter", "STANDARD_ADMISSION_LETTER"),
+            Map.entry("tuition_payment_confirmation", "TUITION_PAYMENT_CONFIRMATION"),
+            Map.entry("final_education_certificate", "FINAL_EDUCATION_CERTIFICATE"),
+            Map.entry("final_education_transcript", "FINAL_TRANSCRIPT"),
+            Map.entry("language_school_enrollment_certificate", "LANGUAGE_SCHOOL_ENROLLMENT"),
+            Map.entry("language_school_transcript", "LANGUAGE_SCHOOL_TRANSCRIPT")
+    );
+
     private final UploadBatchJpaRepository uploadBatchJpaRepository;
     private final ProcessingJobJpaRepository processingJobJpaRepository;
     private final AppUserJpaRepository appUserJpaRepository;
@@ -65,6 +97,8 @@ public class AgencyCommandService {
     private final StudentJpaRepository studentJpaRepository;
     private final ApplicationCaseJpaRepository applicationCaseJpaRepository;
     private final VisaTypeJpaRepository visaTypeJpaRepository;
+    private final DocumentTypeJpaRepository documentTypeJpaRepository;
+    private final CaseDocumentRequirementJpaRepository caseDocumentRequirementJpaRepository;
     private final PythonOcrClient pythonOcrClient;
 
     @Value("${app.storage.root-path:data/uploads}")
@@ -79,7 +113,7 @@ public class AgencyCommandService {
     @Value("${INTERNAL_API_KEY:}")
     private String internalApiKey;
 
-    @Value("${APP_OCR_PROVIDER:openai}")
+    @Value("${APP_OCR_PROVIDER:azure}")
     private String ocrProvider;
 
     public AgencyCommandService(
@@ -90,6 +124,8 @@ public class AgencyCommandService {
             StudentJpaRepository studentJpaRepository,
             ApplicationCaseJpaRepository applicationCaseJpaRepository,
             VisaTypeJpaRepository visaTypeJpaRepository,
+            DocumentTypeJpaRepository documentTypeJpaRepository,
+            CaseDocumentRequirementJpaRepository caseDocumentRequirementJpaRepository,
             PythonOcrClient pythonOcrClient
     ) {
         this.uploadBatchJpaRepository = uploadBatchJpaRepository;
@@ -99,6 +135,8 @@ public class AgencyCommandService {
         this.studentJpaRepository = studentJpaRepository;
         this.applicationCaseJpaRepository = applicationCaseJpaRepository;
         this.visaTypeJpaRepository = visaTypeJpaRepository;
+        this.documentTypeJpaRepository = documentTypeJpaRepository;
+        this.caseDocumentRequirementJpaRepository = caseDocumentRequirementJpaRepository;
         this.pythonOcrClient = pythonOcrClient;
     }
 
@@ -119,6 +157,7 @@ public class AgencyCommandService {
         uploadBatch.setStatus(UploadBatchStatus.UPLOADED.name());
         uploadBatch.setDetectedStudentCount(0);
         uploadBatch.setNote(blankToNull(command.note()));
+        uploadBatch.setVisaTypeCode(blankToNull(command.visaTypeCode()));
         uploadBatch.setUploadedAt(now);
         uploadBatch.setCreatedAt(now);
         uploadBatch.setUpdatedAt(now);
@@ -339,6 +378,9 @@ public class AgencyCommandService {
         if (!casesList.isArray()) return;
 
         LocalDateTime now = LocalDateTime.now();
+        // 서류 타입 캐시 (N+1 방지)
+        Map<String, DocumentTypeEntity> docTypeCache = documentTypeJpaRepository.findAll()
+                .stream().collect(Collectors.toMap(DocumentTypeEntity::getCode, e -> e));
 
         for (JsonNode caseNode : casesList) {
             try {
@@ -384,43 +426,116 @@ public class AgencyCommandService {
 
                 StudentEntity savedStudent = studentJpaRepository.save(student);
 
-                // ApplicationCase 생성
-                String applicationTypeCode = caseNode.path("application_type").path("code").asText("").trim();
-                Optional<VisaTypeEntity> visaTypeOpt = isBlank(applicationTypeCode)
+                // Python 코드(소문자) → Java 코드(대문자)로 정규화
+                JsonNode applicationTypeNode = caseNode.path("application_type");
+                String pythonTypeCode = applicationTypeNode.path("code").asText("").trim();
+                String javaTypeCode = normalizeAppTypeCode(pythonTypeCode);
+
+                // Python 추론 실패 시 배치에서 선택한 타입 사용
+                if (isBlank(javaTypeCode) || "UNKNOWN_APPLICATION_TYPE".equals(javaTypeCode)) {
+                    javaTypeCode = blankToNull(uploadBatch.getVisaTypeCode());
+                }
+
+                Optional<VisaTypeEntity> visaTypeOpt = isBlank(javaTypeCode)
                         ? Optional.empty()
-                        : visaTypeJpaRepository.findByCode(applicationTypeCode);
+                        : visaTypeJpaRepository.findByCode(javaTypeCode);
 
                 if (visaTypeOpt.isEmpty()) {
                     log.info("[createStudentsAndCases] visa_type '{}' 찾을 수 없음 - case={} ApplicationCase 생성 건너뜀",
-                            applicationTypeCode, caseNode.path("case_id").asText());
+                            javaTypeCode, caseNode.path("case_id").asText());
                     continue;
                 }
 
-                int documentCount = caseNode.path("documents").size();
+                // 제출 서류 코드 목록 (Python → Java 변환)
+                Set<String> submittedJavaCodes = new HashSet<>();
+                JsonNode documents = caseNode.path("documents");
+                if (documents.isArray()) {
+                    for (JsonNode doc : documents) {
+                        String pythonDocCode = doc.path("document_code").asText("").trim();
+                        String javaDocCode = toJavaDocCode(pythonDocCode);
+                        if (!isBlank(javaDocCode)) submittedJavaCodes.add(javaDocCode);
+                    }
+                }
+
+                // missing_required_documents 목록 (Python → Java 변환)
+                List<String> missingJavaCodes = new ArrayList<>();
+                JsonNode missingNodes = applicationTypeNode.path("missing_required_documents");
+                if (missingNodes.isArray()) {
+                    for (JsonNode m : missingNodes) {
+                        String javaDocCode = toJavaDocCode(m.asText("").trim());
+                        if (!isBlank(javaDocCode)) missingJavaCodes.add(javaDocCode);
+                    }
+                }
+
+                int submittedCount = submittedJavaCodes.size();
+                int missingCount = missingJavaCodes.size();
+
                 ApplicationCaseEntity applicationCase = new ApplicationCaseEntity();
                 applicationCase.setExternalId(nextExternalId("CASE", now));
                 applicationCase.setStudent(savedStudent);
                 applicationCase.setSchoolOrganization(uploadBatch.getSchoolOrganization());
                 applicationCase.setAgencyOrganization(savedStudent.getAgencyOrganization());
                 applicationCase.setVisaType(visaTypeOpt.get());
-                applicationCase.setApplicationKind(inferApplicationKind(applicationTypeCode).name());
+                applicationCase.setApplicationKind(inferApplicationKind(javaTypeCode).name());
                 applicationCase.setStatus(ApplicationCaseStatus.DRAFT.name());
                 applicationCase.setApplicationDate(uploadBatch.getUploadedAt().toLocalDate());
-                applicationCase.setSubmittedDocumentCount(documentCount);
-                applicationCase.setMissingDocumentCount(0);
+                applicationCase.setSubmittedDocumentCount(submittedCount);
+                applicationCase.setMissingDocumentCount(missingCount);
                 applicationCase.setIntakeBatch(uploadBatch.getExternalId());
                 applicationCase.setCreatedAt(now);
                 applicationCase.setUpdatedAt(now);
 
-                applicationCaseJpaRepository.save(applicationCase);
-                log.info("[createStudentsAndCases] 학생/케이스 생성 완료 student={} case={}",
-                        savedStudent.getExternalId(), applicationCase.getExternalId());
+                ApplicationCaseEntity savedCase = applicationCaseJpaRepository.save(applicationCase);
+
+                // 제출 서류 요건 엔티티 생성
+                int order = 1;
+                for (String javaDocCode : submittedJavaCodes) {
+                    DocumentTypeEntity docType = docTypeCache.get(javaDocCode);
+                    if (docType == null) continue;
+                    CaseDocumentRequirementEntity req = new CaseDocumentRequirementEntity();
+                    req.setApplicationCase(savedCase);
+                    req.setDocumentType(docType);
+                    req.setRequired(true);
+                    req.setDisplayOrder(order++);
+                    req.setStatus(CaseDocumentStatus.SUBMITTED.name());
+                    req.setSubmittedAt(uploadBatch.getUploadedAt().toLocalDate());
+                    req.setCreatedAt(now);
+                    req.setUpdatedAt(now);
+                    caseDocumentRequirementJpaRepository.save(req);
+                }
+                // 누락 서류 요건 엔티티 생성
+                for (String javaDocCode : missingJavaCodes) {
+                    DocumentTypeEntity docType = docTypeCache.get(javaDocCode);
+                    if (docType == null) continue;
+                    CaseDocumentRequirementEntity req = new CaseDocumentRequirementEntity();
+                    req.setApplicationCase(savedCase);
+                    req.setDocumentType(docType);
+                    req.setRequired(true);
+                    req.setDisplayOrder(order++);
+                    req.setStatus(CaseDocumentStatus.NOT_SUBMITTED.name());
+                    req.setCreatedAt(now);
+                    req.setUpdatedAt(now);
+                    caseDocumentRequirementJpaRepository.save(req);
+                }
+
+                log.info("[createStudentsAndCases] 학생/케이스 생성 완료 student={} case={} 제출={} 누락={}",
+                        savedStudent.getExternalId(), savedCase.getExternalId(), submittedCount, missingCount);
 
             } catch (Exception e) {
                 log.warn("[createStudentsAndCases] case={} 처리 중 오류: {}",
                         caseNode.path("case_id").asText(), e.getMessage());
             }
         }
+    }
+
+    private String normalizeAppTypeCode(String pythonCode) {
+        if (isBlank(pythonCode)) return null;
+        return pythonCode.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String toJavaDocCode(String pythonDocCode) {
+        if (isBlank(pythonDocCode)) return null;
+        return PYTHON_TO_JAVA_DOC_CODE.getOrDefault(pythonDocCode.trim().toLowerCase(Locale.ROOT), null);
     }
 
     private ApplicationKind inferApplicationKind(String applicationTypeCode) {

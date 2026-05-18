@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "upload_batch")
@@ -65,6 +66,9 @@ public class UploadBatchEntity {
     @Column(name = "output_dir", length = 500)
     private String outputDir;
 
+    @Column(name = "visa_type_code", length = 64)
+    private String visaTypeCode;
+
     @Column(name = "failure_reason", columnDefinition = "text")
     private String failureReason;
 
@@ -82,10 +86,12 @@ public class UploadBatchEntity {
 
     @OneToMany(mappedBy = "uploadBatch")
     @OrderBy("displayOrder ASC")
+    @BatchSize(size = 30)
     private List<UploadBatchPreviewFileEntity> previewFiles = new ArrayList<>();
 
     @OneToMany(mappedBy = "uploadBatch")
     @OrderBy("attemptNo DESC, createdAt DESC")
+    @BatchSize(size = 30)
     private List<ProcessingJobEntity> processingJobs = new ArrayList<>();
 
     public UploadBatchEntity() {
@@ -173,6 +179,14 @@ public class UploadBatchEntity {
 
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public String getVisaTypeCode() {
+        return visaTypeCode;
+    }
+
+    public void setVisaTypeCode(String visaTypeCode) {
+        this.visaTypeCode = visaTypeCode;
     }
 
     public String getFailureReason() {

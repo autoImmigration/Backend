@@ -6,6 +6,8 @@ import com.yongsik.immigrationops.casework.domain.CaseDocument;
 import com.yongsik.immigrationops.casework.domain.UploadBatch;
 import com.yongsik.immigrationops.casework.domain.UploadBatchProcessingJob;
 import com.yongsik.immigrationops.casework.domain.UploadBatchPreviewFile;
+import com.yongsik.immigrationops.casework.infrastructure.PythonOcrClient;
+import java.util.List;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,9 +24,16 @@ public class AgencyOperationsController {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
 
     private final AgencyQueryService agencyQueryService;
+    private final PythonOcrClient pythonOcrClient;
 
-    public AgencyOperationsController(AgencyQueryService agencyQueryService) {
+    public AgencyOperationsController(AgencyQueryService agencyQueryService, PythonOcrClient pythonOcrClient) {
         this.agencyQueryService = agencyQueryService;
+        this.pythonOcrClient = pythonOcrClient;
+    }
+
+    @GetMapping("/schools")
+    List<AgencyQueryService.SchoolSummary> listSchools() {
+        return agencyQueryService.findSchools();
     }
 
     @GetMapping("/application-cases")
@@ -50,9 +59,17 @@ public class AgencyOperationsController {
                 .toList();
     }
 
+    @GetMapping("/upload-batches/{batchId}/ocr-progress")
+    PythonOcrClient.BatchProgress getOcrProgress(@PathVariable String batchId) {
+        return pythonOcrClient.getBatchProgress(batchId);
+    }
+
     @GetMapping("/upload-batches/{batchId}")
     AgencyUploadBatchDetailResponse getUploadBatch(@PathVariable String batchId) {
-        return toBatchDetail(agencyQueryService.getUploadBatch(batchId));
+        return toBatchDetail(
+                agencyQueryService.getUploadBatch(batchId),
+                agencyQueryService.findCasesByBatchId(batchId)
+        );
     }
 
     private AgencyApplicationSummaryResponse toSummary(ApplicationCase applicationCase) {
@@ -119,7 +136,7 @@ public class AgencyOperationsController {
         );
     }
 
-    private AgencyUploadBatchDetailResponse toBatchDetail(UploadBatch uploadBatch) {
+    private AgencyUploadBatchDetailResponse toBatchDetail(UploadBatch uploadBatch, List<ApplicationCase> cases) {
         return new AgencyUploadBatchDetailResponse(
                 uploadBatch.id(),
                 uploadBatch.fileName(),
@@ -129,7 +146,20 @@ public class AgencyOperationsController {
                 uploadBatch.status().displayName(),
                 uploadBatch.note(),
                 toProcessingJob(uploadBatch.processingJob()),
-                uploadBatch.previewFiles().stream().map(this::toPreviewFile).toList()
+                uploadBatch.previewFiles().stream().map(this::toPreviewFile).toList(),
+                cases.stream().map(this::toBatchCaseResult).toList()
+        );
+    }
+
+    private AgencyBatchCaseResultResponse toBatchCaseResult(ApplicationCase applicationCase) {
+        return new AgencyBatchCaseResultResponse(
+                applicationCase.id(),
+                applicationCase.student().name(),
+                applicationCase.student().nationality(),
+                applicationCase.visaType().displayName(),
+                applicationCase.submittedDocumentCount(),
+                applicationCase.missingDocumentCount(),
+                applicationCase.documents().stream().map(this::toDocument).toList()
         );
     }
 
@@ -240,7 +270,19 @@ record AgencyUploadBatchDetailResponse(
         String status,
         String note,
         AgencyUploadBatchProcessingJobResponse processingJob,
-        List<AgencyUploadBatchPreviewFileResponse> previewFiles
+        List<AgencyUploadBatchPreviewFileResponse> previewFiles,
+        List<AgencyBatchCaseResultResponse> cases
+) {
+}
+
+record AgencyBatchCaseResultResponse(
+        String id,
+        String studentName,
+        String nationality,
+        String applicationType,
+        int submittedCount,
+        int missingCount,
+        List<AgencyCaseDocumentResponse> documents
 ) {
 }
 

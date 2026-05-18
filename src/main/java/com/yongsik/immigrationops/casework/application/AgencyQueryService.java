@@ -3,6 +3,8 @@ package com.yongsik.immigrationops.casework.application;
 import com.yongsik.immigrationops.casework.domain.ApplicationCase;
 import com.yongsik.immigrationops.casework.domain.CaseworkQueryRepository;
 import com.yongsik.immigrationops.casework.domain.UploadBatch;
+import com.yongsik.immigrationops.casework.infrastructure.persistence.OrganizationJpaRepository;
+import com.yongsik.immigrationops.casework.infrastructure.persistence.OrganizationType;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -11,9 +13,20 @@ import org.springframework.stereotype.Service;
 public class AgencyQueryService {
 
     private final CaseworkQueryRepository repository;
+    private final OrganizationJpaRepository organizationJpaRepository;
 
-    public AgencyQueryService(CaseworkQueryRepository repository) {
+    public AgencyQueryService(CaseworkQueryRepository repository, OrganizationJpaRepository organizationJpaRepository) {
         this.repository = repository;
+        this.organizationJpaRepository = organizationJpaRepository;
+    }
+
+    public record SchoolSummary(Long id, String name) {}
+
+    public List<SchoolSummary> findSchools() {
+        return organizationJpaRepository.findByTypeOrderByNameAsc(OrganizationType.SCHOOL)
+                .stream()
+                .map(org -> new SchoolSummary(org.getId(), org.getName()))
+                .toList();
     }
 
     public List<ApplicationCase> findCases(String searchField, String search, String status) {
@@ -45,6 +58,10 @@ public class AgencyQueryService {
     public UploadBatch getUploadBatch(String batchId) {
         return repository.findUploadBatchById(batchId)
                 .orElseThrow(() -> new IllegalArgumentException("Upload batch not found: " + batchId));
+    }
+
+    public List<ApplicationCase> findCasesByBatchId(String batchId) {
+        return repository.findCasesByBatchId(batchId);
     }
 
     private boolean matchesSearch(ApplicationCase applicationCase, String searchField, String search) {

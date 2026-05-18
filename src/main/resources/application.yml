@@ -41,10 +41,13 @@ app:
   python-ocr:
     base-url: ${PYTHON_OCR_BASE_URL:http://localhost:8001}
     enabled: ${PYTHON_OCR_ENABLED:true}
+    auto-start: ${PYTHON_OCR_AUTO_START:false}
+    working-dir: ${PYTHON_OCR_WORKING_DIR:}
+    startup-command: ${PYTHON_OCR_STARTUP_CMD:python -m doc_classifier.batch_api}
   backend:
     callback-base-url: ${BACKEND_CALLBACK_BASE_URL:http://localhost:8080}
   ocr:
-    provider: ${APP_OCR_PROVIDER:stub}
+    provider: ${APP_OCR_PROVIDER:azure}
     openai:
       api-key: ${OPENAI_API_KEY:}
       model: ${OPENAI_OCR_MODEL:gpt-4o-mini}

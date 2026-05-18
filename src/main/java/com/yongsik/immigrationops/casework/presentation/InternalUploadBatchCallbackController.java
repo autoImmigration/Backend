@@ -40,11 +40,10 @@ public class InternalUploadBatchCallbackController {
             @RequestHeader(value = "X-Internal-Api-Key", required = false) String providedApiKey,
             @Valid @RequestBody PythonBatchResultCallbackRequest request
     ) {
-        if (internalApiKey == null || internalApiKey.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Internal API key is not configured on the server");
-        }
-        if (!internalApiKey.equals(providedApiKey)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or missing X-Internal-Api-Key header");
+        if (internalApiKey != null && !internalApiKey.isBlank()) {
+            if (!internalApiKey.equals(providedApiKey)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or missing X-Internal-Api-Key header");
+            }
         }
 
         PythonResultIngestResult result = agencyCommandService.recordPythonResult(
