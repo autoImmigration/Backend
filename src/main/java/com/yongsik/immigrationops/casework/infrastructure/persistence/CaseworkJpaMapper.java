@@ -35,6 +35,9 @@ class CaseworkJpaMapper {
     }
 
     ApplicationCase toApplicationCase(ApplicationCaseEntity entity) {
+        List<String> otherFilenames = entity.getOtherDocumentFilenames() == null || entity.getOtherDocumentFilenames().isBlank()
+                ? List.of()
+                : List.of(entity.getOtherDocumentFilenames().split(",", -1));
         return new ApplicationCase(
                 entity.getExternalId(),
                 toStudentRecord(entity.getStudent()),
@@ -51,7 +54,8 @@ class CaseworkJpaMapper {
                 entity.getSubmittedDocumentCount(),
                 entity.getMissingDocumentCount(),
                 entity.getUpdatedAt(),
-                entity.getDocuments().stream().map(this::toCaseDocument).toList()
+                entity.getDocuments().stream().map(this::toCaseDocument).toList(),
+                otherFilenames
         );
     }
 

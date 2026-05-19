@@ -70,6 +70,9 @@ public class ApplicationCaseEntity {
     @Column(name = "missing_document_count", nullable = false)
     private int missingDocumentCount;
 
+    @Column(name = "other_document_filenames", columnDefinition = "text")
+    private String otherDocumentFilenames;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -197,6 +200,14 @@ public class ApplicationCaseEntity {
 
     public void setMissingDocumentCount(int missingDocumentCount) {
         this.missingDocumentCount = missingDocumentCount;
+    }
+
+    public String getOtherDocumentFilenames() {
+        return otherDocumentFilenames;
+    }
+
+    public void setOtherDocumentFilenames(String otherDocumentFilenames) {
+        this.otherDocumentFilenames = otherDocumentFilenames;
     }
 
     public LocalDateTime getCreatedAt() {

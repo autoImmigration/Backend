@@ -20,10 +20,12 @@ public record ApplicationCase(
         int submittedDocumentCount,
         int missingDocumentCount,
         LocalDateTime updatedAt,
-        List<CaseDocument> documents
+        List<CaseDocument> documents,
+        List<String> otherDocumentFilenames
 ) {
     public ApplicationCase {
         documents = List.copyOf(documents);
+        otherDocumentFilenames = List.copyOf(otherDocumentFilenames);
     }
 
     public boolean isAgencyManaged() {

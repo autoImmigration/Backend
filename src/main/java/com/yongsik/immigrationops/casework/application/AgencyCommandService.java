@@ -449,14 +449,19 @@ public class AgencyCommandService {
                 // 제출 서류 코드 목록 (Python → Java 변환) + 파일명 매핑
                 Set<String> submittedJavaCodes = new HashSet<>();
                 Map<String, String> docFilenames = new HashMap<>();
+                List<String> otherFilenames = new ArrayList<>();
                 JsonNode documents = caseNode.path("documents");
                 if (documents.isArray()) {
                     for (JsonNode doc : documents) {
                         String pythonDocCode = doc.path("document_code").asText("").trim();
+                        String filename = doc.path("filename").asText("").trim();
+                        if ("other_document".equals(pythonDocCode)) {
+                            if (!isBlank(filename)) otherFilenames.add(filename);
+                            continue;
+                        }
                         String javaDocCode = toJavaDocCode(pythonDocCode);
                         if (!isBlank(javaDocCode)) {
                             submittedJavaCodes.add(javaDocCode);
-                            String filename = doc.path("filename").asText("").trim();
                             if (!isBlank(filename)) docFilenames.putIfAbsent(javaDocCode, filename);
                         }
                     }
@@ -487,6 +492,9 @@ public class AgencyCommandService {
                 applicationCase.setSubmittedDocumentCount(submittedCount);
                 applicationCase.setMissingDocumentCount(missingCount);
                 applicationCase.setIntakeBatch(uploadBatch.getExternalId());
+                if (!otherFilenames.isEmpty()) {
+                    applicationCase.setOtherDocumentFilenames(String.join(",", otherFilenames));
+                }
                 applicationCase.setCreatedAt(now);
                 applicationCase.setUpdatedAt(now);
 

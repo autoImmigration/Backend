@@ -449,7 +449,8 @@ public class InMemoryCaseworkQueryRepository implements CaseworkQueryRepository 
                 submittedDocumentCount,
                 missingDocumentCount,
                 updatedAt,
-                documents
+                documents,
+                List.of()
         );
     }
 

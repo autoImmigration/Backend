@@ -197,7 +197,8 @@ public class AgencyOperationsController {
                 applicationCase.visaType().displayName(),
                 applicationCase.submittedDocumentCount(),
                 applicationCase.missingDocumentCount(),
-                applicationCase.documents().stream().map(this::toDocument).toList()
+                applicationCase.documents().stream().map(this::toDocument).toList(),
+                applicationCase.otherDocumentFilenames()
         );
     }
 
@@ -321,7 +322,8 @@ record AgencyBatchCaseResultResponse(
         String applicationType,
         int submittedCount,
         int missingCount,
-        List<AgencyCaseDocumentResponse> documents
+        List<AgencyCaseDocumentResponse> documents,
+        List<String> otherDocuments
 ) {
 }
 
