@@ -446,14 +446,19 @@ public class AgencyCommandService {
                     continue;
                 }
 
-                // 제출 서류 코드 목록 (Python → Java 변환)
+                // 제출 서류 코드 목록 (Python → Java 변환) + 파일명 매핑
                 Set<String> submittedJavaCodes = new HashSet<>();
+                Map<String, String> docFilenames = new HashMap<>();
                 JsonNode documents = caseNode.path("documents");
                 if (documents.isArray()) {
                     for (JsonNode doc : documents) {
                         String pythonDocCode = doc.path("document_code").asText("").trim();
                         String javaDocCode = toJavaDocCode(pythonDocCode);
-                        if (!isBlank(javaDocCode)) submittedJavaCodes.add(javaDocCode);
+                        if (!isBlank(javaDocCode)) {
+                            submittedJavaCodes.add(javaDocCode);
+                            String filename = doc.path("filename").asText("").trim();
+                            if (!isBlank(filename)) docFilenames.putIfAbsent(javaDocCode, filename);
+                        }
                     }
                 }
 
@@ -499,6 +504,7 @@ public class AgencyCommandService {
                     req.setDisplayOrder(order++);
                     req.setStatus(CaseDocumentStatus.SUBMITTED.name());
                     req.setSubmittedAt(uploadBatch.getUploadedAt().toLocalDate());
+                    req.setSourceFilename(docFilenames.get(javaDocCode));
                     req.setCreatedAt(now);
                     req.setUpdatedAt(now);
                     caseDocumentRequirementJpaRepository.save(req);

@@ -5,6 +5,7 @@ import com.yongsik.immigrationops.casework.domain.CaseworkQueryRepository;
 import com.yongsik.immigrationops.casework.domain.UploadBatch;
 import com.yongsik.immigrationops.casework.infrastructure.persistence.OrganizationJpaRepository;
 import com.yongsik.immigrationops.casework.infrastructure.persistence.OrganizationType;
+import com.yongsik.immigrationops.casework.infrastructure.persistence.UploadBatchJpaRepository;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -14,10 +15,12 @@ public class AgencyQueryService {
 
     private final CaseworkQueryRepository repository;
     private final OrganizationJpaRepository organizationJpaRepository;
+    private final UploadBatchJpaRepository uploadBatchJpaRepository;
 
-    public AgencyQueryService(CaseworkQueryRepository repository, OrganizationJpaRepository organizationJpaRepository) {
+    public AgencyQueryService(CaseworkQueryRepository repository, OrganizationJpaRepository organizationJpaRepository, UploadBatchJpaRepository uploadBatchJpaRepository) {
         this.repository = repository;
         this.organizationJpaRepository = organizationJpaRepository;
+        this.uploadBatchJpaRepository = uploadBatchJpaRepository;
     }
 
     public record SchoolSummary(Long id, String name) {}
@@ -62,6 +65,12 @@ public class AgencyQueryService {
 
     public List<ApplicationCase> findCasesByBatchId(String batchId) {
         return repository.findCasesByBatchId(batchId);
+    }
+
+    public String getBatchImagesDir(String batchId) {
+        return uploadBatchJpaRepository.findByExternalId(batchId)
+                .map(e -> e.getImagesDir())
+                .orElse(null);
     }
 
     private boolean matchesSearch(ApplicationCase applicationCase, String searchField, String search) {

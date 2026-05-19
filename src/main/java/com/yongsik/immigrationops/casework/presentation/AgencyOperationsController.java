@@ -7,9 +7,17 @@ import com.yongsik.immigrationops.casework.domain.UploadBatch;
 import com.yongsik.immigrationops.casework.domain.UploadBatchProcessingJob;
 import com.yongsik.immigrationops.casework.domain.UploadBatchPreviewFile;
 import com.yongsik.immigrationops.casework.infrastructure.PythonOcrClient;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,6 +70,35 @@ public class AgencyOperationsController {
     @GetMapping("/upload-batches/{batchId}/ocr-progress")
     PythonOcrClient.BatchProgress getOcrProgress(@PathVariable String batchId) {
         return pythonOcrClient.getBatchProgress(batchId);
+    }
+
+    @GetMapping("/upload-batches/{batchId}/images/{filename:.+}")
+    ResponseEntity<Resource> getBatchImage(@PathVariable String batchId, @PathVariable String filename) {
+        String imagesDir = agencyQueryService.getBatchImagesDir(batchId);
+        if (imagesDir == null) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            Path filePath = Paths.get(imagesDir).resolve(filename).normalize();
+            if (!filePath.startsWith(Paths.get(imagesDir).normalize())) {
+                return ResponseEntity.badRequest().build();
+            }
+            if (!Files.exists(filePath)) {
+                return ResponseEntity.notFound().build();
+            }
+            byte[] bytes = Files.readAllBytes(filePath);
+            String lower = filename.toLowerCase();
+            MediaType contentType = lower.endsWith(".pdf") ? MediaType.APPLICATION_PDF
+                    : lower.endsWith(".png") ? MediaType.IMAGE_PNG
+                    : lower.endsWith(".webp") ? MediaType.parseMediaType("image/webp")
+                    : MediaType.IMAGE_JPEG;
+            return ResponseEntity.ok()
+                    .contentType(contentType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .body(new ByteArrayResource(bytes));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @GetMapping("/upload-batches/{batchId}")
@@ -119,7 +156,8 @@ public class AgencyOperationsController {
                 document.status().displayName(),
                 document.submittedAt() == null ? "-" : DATE_FORMAT.format(document.submittedAt()),
                 document.note(),
-                document.preview()
+                document.preview(),
+                document.sourceFilename()
         );
     }
 
@@ -245,7 +283,8 @@ record AgencyCaseDocumentResponse(
         String status,
         String submittedAt,
         String note,
-        String preview
+        String preview,
+        String sourceFilename
 ) {
 }
 

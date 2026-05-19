@@ -76,7 +76,8 @@ class CaseworkJpaMapper {
                 CaseDocumentStatus.valueOf(entity.getStatus()),
                 entity.getSubmittedAt(),
                 entity.getNote(),
-                entity.getPreviewText() == null ? defaultPreview(documentType) : entity.getPreviewText()
+                entity.getPreviewText() == null ? defaultPreview(documentType) : entity.getPreviewText(),
+                entity.getSourceFilename()
         );
     }
 

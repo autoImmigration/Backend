@@ -7,6 +7,7 @@ public record CaseDocument(
         CaseDocumentStatus status,
         LocalDate submittedAt,
         String note,
-        String preview
+        String preview,
+        String sourceFilename
 ) {
 }

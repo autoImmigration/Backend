@@ -47,6 +47,9 @@ public class CaseDocumentRequirementEntity {
     @Column(columnDefinition = "text")
     private String note;
 
+    @Column(name = "source_filename", length = 255)
+    private String sourceFilename;
+
     @Column(name = "preview_text", columnDefinition = "text")
     private String previewText;
 
@@ -125,6 +128,14 @@ public class CaseDocumentRequirementEntity {
 
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public String getSourceFilename() {
+        return sourceFilename;
+    }
+
+    public void setSourceFilename(String sourceFilename) {
+        this.sourceFilename = sourceFilename;
     }
 
     public String getPreviewText() {

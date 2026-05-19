@@ -463,7 +463,8 @@ public class InMemoryCaseworkQueryRepository implements CaseworkQueryRepository 
                                 CaseDocumentStatus.NOT_SUBMITTED,
                                 null,
                                 "확인 대기",
-                                documentType.displayName() + " 스캔본이 선택되면 이 영역에 미리보기와 OCR 요약이 표시됩니다."
+                                documentType.displayName() + " 스캔본이 선택되면 이 영역에 미리보기와 OCR 요약이 표시됩니다.",
+                                null
                         );
                     }
                     return new CaseDocument(
@@ -473,7 +474,8 @@ public class InMemoryCaseworkQueryRepository implements CaseworkQueryRepository 
                             seed.note(),
                             seed.preview() == null
                                     ? documentType.displayName() + " 스캔본이 선택되면 이 영역에 미리보기와 OCR 요약이 표시됩니다."
-                                    : seed.preview()
+                                    : seed.preview(),
+                            null
                     );
                 })
                 .toList();
@@ -486,7 +488,8 @@ public class InMemoryCaseworkQueryRepository implements CaseworkQueryRepository 
                         CaseDocumentStatus.SUBMITTED,
                         submittedAt,
                         note,
-                        documentType.displayName() + " 스캔본 미리보기 준비 완료"
+                        documentType.displayName() + " 스캔본 미리보기 준비 완료",
+                        null
                 ))
                 .toList();
     }
